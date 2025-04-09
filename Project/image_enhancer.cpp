@@ -30,6 +30,8 @@ int main(int argc, char** argv) {
     std::string filetype;
     bool verbose = false;
     bool benchmark = false;
+    bool fast = false;
+
     double start, end;
     int windowSize = 20;
     float noiseMultiplier = 0.9;
@@ -43,12 +45,13 @@ int main(int argc, char** argv) {
     //  -n=noiseMultiplier (int) 0-100, however interesting results can be achieved if the noiseMultiplier exceeds 100.
     //  -h -> help
     //  -s -> serial version
+    //  -f -> fast version (experimental, results wont be the same)
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
 
         if (i == 1 && arg.substr(0, 2) == "-h") {
-            printf("This program helps enhance images for printing / other use.\nUsage: <image_path> {arguments}\n\nArgument List:\n-v   Verbose Mode\n-b   Benchmark Mode\n-s  Serial Implementation\n-o=\"filepath.filetype\" -> specify the output\n-w=windowSize -> specify the window size of nearest pixels that influence the adaptive thresholds (standard: 20)\n-n=noiseMultiplier -> specify a number between 0 and 100 - lower number means less noise\n");
+            printf("This program helps enhance images for printing / other use.\nUsage: <image_path> {arguments}\n\nArgument List:\n-v   Verbose Mode\n-b   Benchmark Mode\n-s  Serial Implementation\n-o=\"filepath.filetype\" -> specify the output\n-w=windowSize -> specify the window size of nearest pixels that influence the adaptive thresholds (standard: 20)\n-n=noiseMultiplier -> specify a number between 0 and 100 - lower number means less noise\n-f -> fast version (experimental, works best for real documents, with w<150)");
             return 1;
         }
         if (arg.substr(0, 2) == "-o") {
@@ -67,6 +70,8 @@ int main(int argc, char** argv) {
             windowSize = std::stoi(arg.substr(3));
         } else if (arg.substr(0, 2) == "-b") {
             benchmark = true;
+        } else if (arg.substr(0, 2) == "-f") {
+            fast = true;
         } else if (arg.substr(0, 2) == "-n") {
             noiseMultiplier = std::stoi(arg.substr(3));
             noiseMultiplier /= 100;
@@ -135,14 +140,20 @@ int main(int argc, char** argv) {
 
     // step 8: calculate the average grayscale value of all pixels within a window per pixel
     if (verbose) printf("Calculaitng Window Mean per pixel...\n");
-    //float* windowMean = calculateWindowMean(imageGrayScale, width, height, windowSize, windowBorder);
-    float* windowMean = fastSpatialAveraging(imageGrayScale, width, height, windowSize);
-    
+    float* windowMean;
+    if (fast) 
+    windowMean = fastSpatialAveraging(imageGrayScale, width, height, windowSize);
+    else
+    windowMean = calculateWindowMean(imageGrayScale, width, height, windowSize, windowBorder);
+
     // step 9: calculate the window's standard deviation per pixel
     if (verbose) printf("Calculaitng Window Standard Deviation per pixel...\n");
     float* squaredDiff = calculateWindowSquaredDiff(width, height, windowMean, deviation);
-    //float* windowStandardDev = calculateWindowStandardDeviation(imageGrayScale, width, height, windowSize, squaredDiff, windowBorder);
-    float* windowStandardDev = fastWindowStandardDeviation(width, height, windowSize, squaredDiff);
+    float* windowStandardDev;
+    if (fast)
+    windowStandardDev = fastWindowStandardDeviation(width, height, windowSize, squaredDiff);
+    else
+    windowStandardDev = calculateWindowStandardDeviation(imageGrayScale, width, height, windowSize, squaredDiff, windowBorder);
 
     // step 10: calculate an adaptive deviation per pixel
     if (verbose) printf("Calculaitng Adaptive Deviation per pixel...\n");

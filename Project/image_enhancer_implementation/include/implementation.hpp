@@ -261,15 +261,15 @@ float* calculateWindowMean(const unsigned char* img, int width, int height, int 
 // Function to apply fast spatial averaging
 float* fastSpatialAveraging(const unsigned char* img, int width, int height, int windowSize) {
     float* windowMean = static_cast<float*>(
-        ALIGNED_ALLOC(64, width * height * sizeof(float))
+        ALIGNED_ALLOC(64, (width + windowSize/2)* (height + windowSize/2) * sizeof(float))
     );
 
-    int* average = static_cast<int*>(
-        ALIGNED_ALLOC(64, 255 * width * height * sizeof(int))
+    float* average = static_cast<float*>(
+        ALIGNED_ALLOC(64, 255 * width * height * sizeof(float))
     );
 
 
-    int col_sum[height + windowSize - 2]; // Array to store column sums
+    int col_sum[width + windowSize - 2]; // Array to store column sums
 
     int k = 0;  // Counter to keep track of elements in the window
     int j = 0;  // Average value index
@@ -285,10 +285,10 @@ float* fastSpatialAveraging(const unsigned char* img, int width, int height, int
     }
 
     // Second pass: Perform sliding window summation and apply averages
-    for (int j = 0; j < height + windowSize - 2; ++j) {
+    for (int j = 0; j < width + windowSize - 2; ++j) {
         col_sum[j] = 0;
-        for (int i = 0; i < windowSize/2; ++i) {
-            col_sum[j] += img[(i)* width + j - windowSize/2];
+        for (int i = 0; i < windowSize; ++i) {
+            col_sum[j] += img[(i)* width + j];
         }
     }
 
@@ -298,18 +298,23 @@ float* fastSpatialAveraging(const unsigned char* img, int width, int height, int
     }
 
     // Calculate the first column's average
-    windowMean[0] = average[sum];
+    sum = std::abs( sum);
+    windowMean[windowSize/2 * width + windowSize/2] = average[sum];
 
     // Calculate the rest of the columns for the first row
-    for (int col = 1; col < height - 1; ++col) {
+    for (int col = 1; col < width - 1; ++col) {
         sum = sum - col_sum[col - 1] + col_sum[col + windowSize - 1];
-        windowMean[col] = average[sum];
+        sum = std::abs( sum);
+        windowMean[windowSize/2 * width + col + windowSize/2] = average[sum];
     }
 
     // For the rest of the rows
-    for (int row = 1; row < width - 1; ++row) {
-        for (int j = 0; j < height + windowSize - 2; ++j) {
+    for (int row = 1; row < height - 1; ++row) {
+        for (int j = 0; j < width + windowSize - 2; ++j) {
+            if (row + windowSize - 1 < height)
             col_sum[j] = col_sum[j] - img[(row - 1) * width + j] + img[(row + windowSize - 1) * width + j];
+            else
+            col_sum[j] = col_sum[j] - img[(row - 1) * width + j] + 255;
         }
 
         sum = 0;
@@ -318,13 +323,14 @@ float* fastSpatialAveraging(const unsigned char* img, int width, int height, int
         }
 
         // First column of the current row
-        windowMean[row * width] = average[sum];
+        sum = std::abs( sum);
+        windowMean[(row + windowSize/2)* width + windowSize/2] = average[sum];
 
         // Rest of the columns of the current row
-        for (int col = 1; col < height - 1; ++col) {
+        for (int col = 1; col < width - 1; ++col) {
             sum = sum - col_sum[col - 1] + col_sum[col + windowSize - 1];
-            sum = std::max(0, sum);
-            windowMean[row * width + col] = average[sum];
+            sum = std::abs( sum);
+            windowMean[(row + windowSize/2)* width + col + windowSize/2] = average[sum];
         }
     }
 
@@ -357,7 +363,7 @@ float* fastWindowStandardDeviation(int width, int height, int windowSize, float*
     );
 
 
-    int col_sum[height + windowSize - 2]; // Array to store column sums
+    int col_sum[width + windowSize - 2]; // Array to store column sums
 
     int k = 0;  // Counter to keep track of elements in the window
     int j = 0;  // Average value index
@@ -373,10 +379,10 @@ float* fastWindowStandardDeviation(int width, int height, int windowSize, float*
     }
 
     // Second pass: Perform sliding window summation and apply averages
-    for (int j = 0; j < height + windowSize - 2; ++j) {
+    for (int j = 0; j < width + windowSize - 2; ++j) {
         col_sum[j] = 0;
-        for (int i = 0; i < windowSize/2; ++i) {
-            col_sum[j] += squaredDiff[(i)* width + j - windowSize/2];
+        for (int i = 0; i < windowSize; ++i) {
+            col_sum[j] += squaredDiff[(i-windowSize/2)* width + j];
         }
     }
 
@@ -386,18 +392,23 @@ float* fastWindowStandardDeviation(int width, int height, int windowSize, float*
     }
 
     // Calculate the first column's average
+    sum = std::abs( sum);
     windowMean[0] = std::sqrt(average[sum]);
 
     // Calculate the rest of the columns for the first row
-    for (int col = 1; col < height - 1; ++col) {
+    for (int col = 1; col < width - 1; ++col) {
         sum = sum - col_sum[col - 1] + col_sum[col + windowSize - 1];
+        sum = std::abs( sum);
         windowMean[col] = std::sqrt(average[sum]);
     }
 
     // For the rest of the rows
-    for (int row = 1; row < width - 1; ++row) {
-        for (int j = 0; j < height + windowSize - 2; ++j) {
+    for (int row = 1; row < height - 1; ++row) {
+        for (int j = 0; j < width + windowSize - 2; ++j) {
+            if (row + windowSize - 1 < height)
             col_sum[j] = col_sum[j] - squaredDiff[(row - 1) * width + j] + squaredDiff[(row + windowSize - 1) * width + j];
+            else
+            col_sum[j] = col_sum[j] - squaredDiff[(row - 1) * width + j] + 255*255;
         }
 
         sum = 0;
@@ -406,13 +417,13 @@ float* fastWindowStandardDeviation(int width, int height, int windowSize, float*
         }
 
         // First column of the current row
-        sum = std::max(0, sum);
+        sum = std::abs(sum);
         windowMean[row * width] = std::sqrt(average[sum]);
 
         // Rest of the columns of the current row
-        for (int col = 1; col < height - 1; ++col) {
+        for (int col = 1; col < width - 1; ++col) {
             sum = sum - col_sum[col - 1] + col_sum[col + windowSize - 1];
-            sum = std::max(0, sum);
+            sum = std::abs( sum);
             windowMean[row * width + col] = std::sqrt(average[sum]);
         }
     }

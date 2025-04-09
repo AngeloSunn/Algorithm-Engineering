@@ -279,6 +279,29 @@ TEST_CASE("TestImage")
 
       CHECK(writePPM(filename, width, height, img_enhanced) == 0);
    }
+
+   SECTION("Test fast methods") {
+      float* fast_window_means = fastSpatialAveraging(img_grayscale, width, height, window_size);
+
+      /*
+      for (int i = 0; i < pixel_amount; ++i) {
+            float data = window_mean[i];
+            if (i % (width) == 0)
+            std::cout << "\n";
+            std::cout << data << ", ";
+      }
+      
+
+      std::cout << "\n";
+
+      for (int i = 0; i < pixel_amount; ++i) {
+         float data = fast_window_means[i];
+         if (i % (width) == 0)
+         std::cout << "\n";
+         std::cout << data << ", ";
+      }
+      */
+   }
 }
 
    // for (int i = 0; i < pixel_amount; ++i) {
